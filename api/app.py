@@ -1,48 +1,43 @@
 from fastapi import FastAPI
-from langchain.prompts import ChatPromptTemplate
-from langchain_cohere import ChatCohere
-from langserve import add_routes
-import uvicorn
-import os
-from langchain_community.llms.ollama import Ollama
+from pydantic import BaseModel
+from langchain_openai import ChatOpenAI
+from langchain_ollama import OllamaLLM
 from dotenv import load_dotenv
+import os
 
-load_dotenv()
-
-os.environ['COHERE_API_KEY']=os.getenv("COHERE_API_KEY") 
+load_dotenv() 
 
 app = FastAPI(
-    title = "Langchain Server",
-    version = "1.0",
-    description = "A simple API server"
+    title="Langchain Server",
+    version="1.0", 
+    description="API Server"
 )
 
-add_routes(
-    app,
-    ChatCohere(model="command-nightly", temperature=0.7),
-    path = "/ChatCohere"
-)
+# Initialize models with API key
+openai_model = ChatOpenAI(openai_api_key=os.getenv("OPENAI_API_KEY"))
+ollama_model = OllamaLLM(model="gemma3:1b")
 
-model = ChatCohere(model="command-nightly", temperature=0.7)
+# Pydantic request models
+class EssayRequest(BaseModel):
+    topic: str
 
-## Ollama LLAMA2
-llm = Ollama(model="gemma3:1b")
+class PoemRequest(BaseModel):
+    topic: str
 
-prompt1=ChatPromptTemplate.from_template("Write me an essay about {topic} with 100 words ")
-prompt2=ChatPromptTemplate.from_template("Write me a poem about {topic} with 100 words ") 
+# POST endpoint for essay (OpenAI)
+@app.post("/essay")
+def generate_essay(request: EssayRequest):
+    question = f"Write me an essay about {request.topic} with 100 words"
+    response = openai_model.invoke({"question": question})
+    return {"response": response.get("text", str(response))}
 
-add_routes(
-    app,
-    prompt1|model,
-    path="/essay"
-    
-)
+# POST endpoint for poem (Ollama)
+@app.post("/poem")
+def generate_poem(request: PoemRequest):
+    question = f"Write me a poem about {request.topic} for a 5 years child with 100 words"
+    response = ollama_model.invoke({"question": question})
+    return {"response": response.get("text", str(response))}
 
-add_routes(
-    app,
-    prompt2|llm,
-    path="/poem"
-)
-
-if __name__ == "__main__" : 
+if __name__ == "__main__":
+    import uvicorn
     uvicorn.run(app, host="localhost", port=8000)
