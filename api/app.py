@@ -1,43 +1,43 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from langchain_openai import ChatOpenAI
+from fastapi import FastAPI, Query
+from langchain_cohere import ChatCohere
 from langchain_ollama import OllamaLLM
 from dotenv import load_dotenv
 import os
+import uvicorn
 
-load_dotenv() 
+load_dotenv()
+
+os.environ['COHERE_API_KEY'] = os.getenv("COHERE_API_KEY")
 
 app = FastAPI(
     title="Langchain Server",
     version="1.0", 
-    description="API Server"
+    description="API Server with Cohere and Ollama"
 )
 
-# Initialize models with API key
-openai_model = ChatOpenAI(openai_api_key=os.getenv("OPENAI_API_KEY"))
+# Initialize the language models
+cohere_model = ChatCohere(model="command", temperature=0.7)
 ollama_model = OllamaLLM(model="gemma3:1b")
 
-# Pydantic request models
-class EssayRequest(BaseModel):
-    topic: str
 
-class PoemRequest(BaseModel):
-    topic: str
+@app.get("/essay")
+def generate_essay_get(topic: str):
+    """Generates an essay using the Cohere model."""
 
-# POST endpoint for essay (OpenAI)
-@app.post("/essay")
-def generate_essay(request: EssayRequest):
-    question = f"Write me an essay about {request.topic} with 100 words"
-    response = openai_model.invoke({"question": question})
-    return {"response": response.get("text", str(response))}
+    question = f"Write me an essay about {topic} with 100 words"
+    # ChatCohere returns an AIMessage object, so we access content
+    response_object = cohere_model.invoke(question)
+    return {"response": response_object.content}
 
-# POST endpoint for poem (Ollama)
-@app.post("/poem")
-def generate_poem(request: PoemRequest):
-    question = f"Write me a poem about {request.topic} for a 5 years child with 100 words"
-    response = ollama_model.invoke({"question": question})
-    return {"response": response.get("text", str(response))}
+
+@app.get("/poem")
+def generate_poem_get(topic: str):
+    """Generates a poem using the local Ollama model."""
+
+    question = f"Write me a poem about {topic} for a 5 year old child with 100 words"
+    # OllamaLLM returns a simple string
+    response_string = ollama_model.invoke(question)
+    return {"response": response_string}
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="localhost", port=8000)
+    uvicorn.run(app, host="localhost", port=8001)
