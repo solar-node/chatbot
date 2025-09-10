@@ -12,3 +12,5 @@ env/
 # Ignore other sensitive or temporary files
 .DS_Store
 *.log
+
+rag/.ipynb_checkpoints
