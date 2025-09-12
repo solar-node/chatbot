@@ -11,3 +11,11 @@ sse_starlette
 bs4
 pypdf
 chromadb
+
+langchain
+langchain-google-genai
+langchain-community
+langchainhub
+faiss-cpu
+wikipedia
+arxiv
